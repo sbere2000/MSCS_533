@@ -1,0 +1,297 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Needed for input formatters
+
+// The entry point of the Flutter application
+void main() {
+  runApp(const UnitConverterApp());
+}
+
+// Global constants for conversion factors
+const double kMetersPerMile = 1609.34;
+const double kKilogramsPerPound = 0.453592;
+
+// The main application widget
+class UnitConverterApp extends StatelessWidget {
+  const UnitConverterApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      // Title displayed in the device's application manager
+      title: 'Unit Converter',
+      // Define a modern, clean theme
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        // Ensure visual density adapts to screen size
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        useMaterial3: true,
+      ),
+      // Set the home screen to the conversion widget
+      home: const ConversionScreen(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+// StatefulWidget to manage the dynamic state of the conversion screen
+class ConversionScreen extends StatefulWidget {
+  const ConversionScreen({super.key});
+
+  @override
+  State<ConversionScreen> createState() => _ConversionScreenState();
+}
+
+// State class for the ConversionScreen
+class _ConversionScreenState extends State<ConversionScreen> {
+  // --- State Variables ---
+  String _unitType = 'Distance'; // Current unit type: 'Distance' or 'Mass'
+  double _inputValue = 0.0;       // User's input value
+  String _result = 'Enter a value and press Convert'; // The displayed result
+
+  // 0: Metric to Imperial (e.g., Km to Miles)
+  // 1: Imperial to Metric (e.g., Miles to Km)
+  int _conversionDirection = 0;
+
+  // Controller for the input text field
+  final TextEditingController _inputController = TextEditingController();
+
+  // --- Conversion Logic ---
+
+  /// Performs the unit conversion based on the current state.
+  void _performConversion() {
+    double resultValue = 0.0;
+    String fromUnit = '';
+    String toUnit = '';
+
+    // Check for valid input
+    if (_inputValue <= 0.0) {
+      setState(() {
+        _result = 'Please enter a value greater than zero.';
+      });
+      return;
+    }
+
+    if (_unitType == 'Distance') {
+      if (_conversionDirection == 0) { // Metric (Km) to Imperial (Miles)
+        fromUnit = 'Kilometers (Km)';
+        toUnit = 'Miles (mi)';
+        // Km to Miles: result = Km / (Meters per Mile / 1000)
+        resultValue = _inputValue / (kMetersPerMile / 1000.0);
+      } else { // Imperial (Miles) to Metric (Km)
+        fromUnit = 'Miles (mi)';
+        toUnit = 'Kilometers (Km)';
+        // Miles to Km: result = Miles * (Meters per Mile / 1000)
+        resultValue = _inputValue * (kMetersPerMile / 1000.0);
+      }
+    } else { // Mass
+      if (_conversionDirection == 0) { // Metric (Kg) to Imperial (Lbs)
+        fromUnit = 'Kilograms (Kg)';
+        toUnit = 'Pounds (lbs)';
+        // Kg to Lbs: result = Kg / Kilograms per Pound
+        resultValue = _inputValue / kKilogramsPerPound;
+      } else { // Imperial (Lbs) to Metric (Kg)
+        fromUnit = 'Pounds (lbs)';
+        toUnit = 'Kilograms (Kg)';
+        // Lbs to Kg: result = Lbs * Kilograms per Pound
+        resultValue = _inputValue * kKilogramsPerPound;
+      }
+    }
+
+    // Update the result string
+    setState(() {
+      _result =
+          '${_inputValue.toStringAsFixed(2)} $fromUnit converts to ${resultValue.toStringAsFixed(2)} $toUnit';
+    });
+  }
+
+  // --- UI Builder Methods ---
+
+  /// Builds the widget for selecting the unit type (Distance/Mass).
+  Widget _buildUnitTypeSelector() {
+    return SegmentedButton<String>(
+      segments: const [
+        ButtonSegment(value: 'Distance', label: Text('Distance')),
+        ButtonSegment(value: 'Mass', label: Text('Mass')),
+      ],
+      selected: <String>{_unitType},
+      onSelectionChanged: (Set<String> newSelection) {
+        setState(() {
+          _unitType = newSelection.first;
+          _conversionDirection = 0; // Reset direction on type change
+          _inputController.clear(); // Clear input
+          _result = 'Select a direction and enter a value.';
+        });
+      },
+      style: SegmentedButton.styleFrom(
+        selectedBackgroundColor: Theme.of(context).primaryColor,
+        selectedForegroundColor: Colors.white,
+      ),
+    );
+  }
+
+  /// Builds the widget for selecting the conversion direction.
+  Widget _buildDirectionSelector() {
+    // Define the labels based on the current unit type
+    String label0; // Metric to Imperial
+    String label1; // Imperial to Metric
+
+    if (_unitType == 'Distance') {
+      label0 = 'Km to Miles';
+      label1 = 'Miles to Km';
+    } else {
+      label0 = 'Kg to Pounds';
+      label1 = 'Pounds to Kg';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RadioListTile<int>(
+          title: Text(label0),
+          value: 0,
+          groupValue: _conversionDirection,
+          onChanged: (int? value) {
+            setState(() {
+              _conversionDirection = value!;
+            });
+          },
+        ),
+        RadioListTile<int>(
+          title: Text(label1),
+          value: 1,
+          groupValue: _conversionDirection,
+          onChanged: (int? value) {
+            setState(() {
+              _conversionDirection = value!;
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Builds the input text field.
+  Widget _buildInputField() {
+    return TextField(
+      controller: _inputController,
+      // Only allow numerical input
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      // Apply formatters to restrict to digits and a single decimal point
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*')),
+      ],
+      decoration: InputDecoration(
+        labelText: 'Enter Value to Convert',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        prefixIcon: const Icon(Icons.calculate),
+      ),
+      onChanged: (value) {
+        // Parse the input value, defaulting to 0.0 if empty or invalid
+        _inputValue = double.tryParse(value) ?? 0.0;
+        // Optionally update result in real-time, or rely on the button press
+      },
+      onSubmitted: (_) => _performConversion(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _inputController.dispose();
+    super.dispose();
+  }
+
+  // --- Main Widget Tree ---
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Unit Converter'),
+        centerTitle: true,
+        backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // 1. Unit Type Selector
+            const Text(
+              'Select Measurement Type:',
+              style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12.0),
+            Center(child: _buildUnitTypeSelector()),
+
+            const Divider(height: 40, thickness: 1),
+
+            // 2. Conversion Direction Selector
+            const Text(
+              'Select Conversion Direction:',
+              style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+            ),
+            _buildDirectionSelector(),
+
+            const Divider(height: 40, thickness: 1),
+
+            // 3. Input Field
+            _buildInputField(),
+
+            const SizedBox(height: 24.0),
+
+            // 4. Convert Button
+            ElevatedButton.icon(
+              onPressed: _performConversion,
+              icon: const Icon(Icons.swap_horiz),
+              label: const Text(
+                'Convert',
+                style: TextStyle(fontSize: 18.0),
+              ),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 15.0),
+                backgroundColor: Colors.blueAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                elevation: 5,
+              ),
+            ),
+
+            const SizedBox(height: 40.0),
+
+            // 5. Result Display
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15)),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Result:',
+                      style: TextStyle(
+                          fontSize: 20.0, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8.0),
+                    Text(
+                      _result,
+                      style: TextStyle(
+                        fontSize: 24.0,
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
