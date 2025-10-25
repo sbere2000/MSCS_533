@@ -47,3 +47,28 @@ class TaskScheduler:
             return f"Metadata deleted for Task ID: {task_id}"
         else:
             return f"Error: Task ID '{task_id}' not found."
+    
+################################# TEST ##############################
+# Create the scheduler instance
+scheduler_poc = TaskScheduler()
+
+print("--- DEMO 1: Task Insertion (add_task) ---")
+# 1. Basic Insert
+print(scheduler_poc.add_task_metadata("T101", 10, 50, "Design Interface"))
+print(scheduler_poc.add_task_metadata("T102", 5, 100, "Fix critical bug"))
+print(scheduler_poc.add_task_metadata("T103", 20, 25, "Write documentation"))
+print(f"Current tasks in Hash Table: {list(scheduler_poc.task_metadata.keys())}\n")
+
+print("--- DEMO 2: Task Lookup (find_task) ---")
+# 2. Basic Lookup (O(1) access) [cite: 25]
+task_info = scheduler_poc.find_task_metadata("T102")
+print(f"Details for T102: {task_info}")
+# 3. Edge Case: Not Found Lookup
+print(f"Details for T999: {scheduler_poc.find_task_metadata('T999')}\n")
+
+print("--- DEMO 3: Task Deletion (complete_task) ---")
+# 4. Basic Delete (O(1) removal) [cite: 30]
+print(scheduler_poc.complete_task_metadata("T101"))
+print(f"Current tasks in Hash Table after T101 deletion: {list(scheduler_poc.task_metadata.keys())}")
+# 5. Edge Case: Double Deletion (should report error)
+print(scheduler_poc.complete_task_metadata("T101"))
